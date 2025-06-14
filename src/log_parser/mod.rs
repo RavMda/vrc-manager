@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -9,17 +9,18 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::mpsc::Sender;
 use tokio::time;
 
-lazy_static! {
-    static ref LOG_PATTERN: Regex = Regex::new(
+static LOG_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
         r"(?x)
         ^(\d{4}\.\d{2}\.\d{2}\ \d{2}:\d{2}:\d{2})  # Timestamp
         .*OnPlayerJoined.*                          # Event
         (usr_[0-9a-fA-F-]+)                        # User ID
-        "
+        ",
     )
-    .unwrap();
-    static ref CUSTOM_LOG_DIR: Option<String> = std::env::var("CUSTOM_LOG_DIR").ok();
-}
+    .unwrap()
+});
+
+static CUSTOM_LOG_DIR: Lazy<Option<String>> = Lazy::new(|| std::env::var("CUSTOM_LOG_DIR").ok());
 
 pub async fn start_loop(tx: Sender<UserIdResult>) -> Result<()> {
     let log_path = find_latest_log().await?;

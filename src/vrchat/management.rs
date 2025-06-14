@@ -1,16 +1,16 @@
 use anyhow::{Context, Result};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use std::collections::HashSet;
 use std::io::{self, BufRead};
 use url::Url;
 use vrchatapi::apis;
 use vrchatapi::models::BanGroupMemberRequest;
 
-lazy_static! {
-    static ref AVATAR_FILE: String =
-        std::env::var("AVATAR_FILE").unwrap_or("avatars.txt".to_string());
-    static ref GROUP_ID: String = std::env::var("GROUP_ID").unwrap();
-}
+static AVATAR_FILE: Lazy<String> =
+    Lazy::new(|| std::env::var("AVATAR_FILE").unwrap_or("avatars.txt".to_string()));
+
+static GROUP_ID: Lazy<String> =
+    Lazy::new(|| std::env::var("GROUP_ID").expect("GROUP_ID environment variable not set"));
 
 pub async fn process_user(
     config: &apis::configuration::Configuration,
