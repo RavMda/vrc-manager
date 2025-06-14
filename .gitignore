@@ -1,0 +1,4 @@
+/target
+*.cookie
+.env
+Cargo.lock
