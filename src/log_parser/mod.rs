@@ -2,19 +2,48 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::Duration;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::mpsc::Sender;
 use tokio::time;
 
-static LOG_PATTERN: Lazy<Regex> = Lazy::new(|| {
+static JOIN_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r"(?x)
         ^(\d{4}\.\d{2}\.\d{2}\ \d{2}:\d{2}:\d{2})  # Timestamp
-        .*OnPlayerJoined.*                          # Event
-        (usr_[0-9a-fA-F-]+)                        # User ID
+        \s+\w+\s+-\s+                             # Log level and hyphen
+        \[Behaviour\]\sOnPlayerJoined\s           # Event
+        ([^\(]+)\s\(                              # Username
+        (usr_[0-9a-fA-F-]+)                      # User ID
+        ",
+    )
+    .unwrap()
+});
+
+static LEAVE_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?x)
+        ^(\d{4}\.\d{2}\.\d{2}\ \d{2}:\d{2}:\d{2})  # Timestamp
+        \s+\w+\s+-\s+                             # Log level and hyphen
+        \[Behaviour\]\sOnPlayerLeft\s             # Event
+        ([^\(]+)\s\(                              # Username
+        (usr_[0-9a-fA-F-]+)                      # User ID
+        ",
+    )
+    .unwrap()
+});
+
+static AVATAR_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?x)
+        ^(\d{4}\.\d{2}\.\d{2}\ \d{2}:\d{2}:\d{2})  # Timestamp
+        \s+\w+\s+-\s+                             # Log level and hyphen
+        \[Behaviour\]\sSwitching\s                # Event
+        ([^\s]+)\s+to\savatar\s                   # Username
         ",
     )
     .unwrap()
@@ -29,6 +58,7 @@ pub async fn start_loop(tx: Sender<UserIdResult>) -> Result<()> {
     let mut file = fs::File::open(&log_path).await?;
     let mut last_position = file.seek(std::io::SeekFrom::End(0)).await?;
     let mut buffer = String::new();
+    let user_map = Mutex::new(HashMap::new());
 
     loop {
         time::sleep(Duration::from_secs(1)).await;
@@ -50,6 +80,7 @@ pub async fn start_loop(tx: Sender<UserIdResult>) -> Result<()> {
                 &mut buffer,
                 program_start,
                 &tx,
+                &user_map,
             )
             .await?;
 
@@ -69,20 +100,50 @@ async fn process_log_chunk(
     buffer: &mut String,
     program_start: DateTime<Local>,
     tx: &Sender<UserIdResult>,
+    user_map: &Mutex<HashMap<String, String>>,
 ) -> Result<()> {
     let data = std::mem::take(buffer) + &chunk;
     let mut user_ids = Vec::new();
 
     for line in data.lines() {
-        if let Some(captures) = LOG_PATTERN.captures(line) {
+        if let Some(captures) = JOIN_PATTERN.captures(line) {
             let timestamp_str = captures.get(1).unwrap().as_str();
-            let user_id = captures.get(2).unwrap().as_str();
+            let username = captures.get(2).unwrap().as_str().trim();
+            let user_id = captures.get(3).unwrap().as_str();
 
             if let Ok(timestamp) = NaiveDateTime::parse_from_str(timestamp_str, "%Y.%m.%d %H:%M:%S")
             {
                 let datetime = Local.from_local_datetime(&timestamp).unwrap();
                 if datetime > program_start {
+                    let mut map = user_map.lock().unwrap();
+                    map.insert(username.to_string(), user_id.to_string());
                     user_ids.push(user_id.to_string());
+                }
+            }
+        } else if let Some(captures) = LEAVE_PATTERN.captures(line) {
+            let timestamp_str = captures.get(1).unwrap().as_str();
+            let username = captures.get(2).unwrap().as_str().trim();
+
+            if let Ok(timestamp) = NaiveDateTime::parse_from_str(timestamp_str, "%Y.%m.%d %H:%M:%S")
+            {
+                let datetime = Local.from_local_datetime(&timestamp).unwrap();
+                if datetime > program_start {
+                    let mut map = user_map.lock().unwrap();
+                    map.remove(username);
+                }
+            }
+        } else if let Some(captures) = AVATAR_PATTERN.captures(line) {
+            let timestamp_str = captures.get(1).unwrap().as_str();
+            let username = captures.get(2).unwrap().as_str().trim();
+
+            if let Ok(timestamp) = NaiveDateTime::parse_from_str(timestamp_str, "%Y.%m.%d %H:%M:%S")
+            {
+                let datetime = Local.from_local_datetime(&timestamp).unwrap();
+                if datetime > program_start {
+                    let map = user_map.lock().unwrap();
+                    if let Some(user_id) = map.get(username) {
+                        user_ids.push(user_id.to_string());
+                    }
                 }
             }
         }
