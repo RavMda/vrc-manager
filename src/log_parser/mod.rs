@@ -102,7 +102,6 @@ async fn process_log_chunk(
     user_map: &Mutex<HashMap<String, String>>,
 ) -> Result<()> {
     let data = std::mem::take(buffer) + &chunk;
-    let mut user_ids = Vec::new();
 
     for line in data.lines() {
         if let Some(captures) = JOIN_PATTERN.captures(line) {
@@ -118,7 +117,6 @@ async fn process_log_chunk(
                         let mut map = user_map.lock().await;
                         map.insert(username.to_string(), user_id.to_string());
                     }
-                    user_ids.push(user_id.to_string());
 
                     BUS.publish(AppEvent::OnPlayerJoined(user_id.into())).await;
                 }
@@ -148,8 +146,6 @@ async fn process_log_chunk(
                 if datetime > program_start {
                     let map = user_map.lock().await;
                     if let Some(user_id) = map.get(username) {
-                        user_ids.push(user_id.to_string());
-
                         BUS.publish(AppEvent::OnAvatarChanged(user_id.into())).await;
                     }
                 }
