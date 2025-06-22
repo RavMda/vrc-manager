@@ -4,12 +4,13 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::time::Duration;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
-use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 use tokio::time;
+
+use crate::events::{AppEvent, BUS};
 
 static JOIN_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
@@ -51,7 +52,7 @@ static AVATAR_PATTERN: Lazy<Regex> = Lazy::new(|| {
 
 static CUSTOM_LOG_DIR: Lazy<Option<String>> = Lazy::new(|| std::env::var("CUSTOM_LOG_DIR").ok());
 
-pub async fn start_loop(tx: Sender<UserIdResult>) -> Result<()> {
+pub async fn start_loop() -> Result<()> {
     let log_path = find_latest_log().await?;
     let program_start = Local::now();
 
@@ -79,7 +80,6 @@ pub async fn start_loop(tx: Sender<UserIdResult>) -> Result<()> {
                 String::from_utf8_lossy(&chunk).into_owned(),
                 &mut buffer,
                 program_start,
-                &tx,
                 &user_map,
             )
             .await?;
@@ -99,7 +99,6 @@ async fn process_log_chunk(
     chunk: String,
     buffer: &mut String,
     program_start: DateTime<Local>,
-    tx: &Sender<UserIdResult>,
     user_map: &Mutex<HashMap<String, String>>,
 ) -> Result<()> {
     let data = std::mem::take(buffer) + &chunk;
@@ -115,21 +114,28 @@ async fn process_log_chunk(
             {
                 let datetime = Local.from_local_datetime(&timestamp).unwrap();
                 if datetime > program_start {
-                    let mut map = user_map.lock().unwrap();
-                    map.insert(username.to_string(), user_id.to_string());
+                    {
+                        let mut map = user_map.lock().await;
+                        map.insert(username.to_string(), user_id.to_string());
+                    }
                     user_ids.push(user_id.to_string());
+
+                    BUS.publish(AppEvent::OnPlayerJoined(user_id.into())).await;
                 }
             }
         } else if let Some(captures) = LEAVE_PATTERN.captures(line) {
             let timestamp_str = captures.get(1).unwrap().as_str();
             let username = captures.get(2).unwrap().as_str().trim();
+            let user_id = captures.get(3).unwrap().as_str();
 
             if let Ok(timestamp) = NaiveDateTime::parse_from_str(timestamp_str, "%Y.%m.%d %H:%M:%S")
             {
                 let datetime = Local.from_local_datetime(&timestamp).unwrap();
                 if datetime > program_start {
-                    let mut map = user_map.lock().unwrap();
+                    let mut map = user_map.lock().await;
                     map.remove(username);
+
+                    BUS.publish(AppEvent::OnPlayerLeft(user_id.into())).await;
                 }
             }
         } else if let Some(captures) = AVATAR_PATTERN.captures(line) {
@@ -140,9 +146,11 @@ async fn process_log_chunk(
             {
                 let datetime = Local.from_local_datetime(&timestamp).unwrap();
                 if datetime > program_start {
-                    let map = user_map.lock().unwrap();
+                    let map = user_map.lock().await;
                     if let Some(user_id) = map.get(username) {
                         user_ids.push(user_id.to_string());
+
+                        BUS.publish(AppEvent::OnAvatarChanged(user_id.into())).await;
                     }
                 }
             }
@@ -153,10 +161,6 @@ async fn process_log_chunk(
         buffer.push_str(&data[last_newline + 1..]);
     } else {
         *buffer = data;
-    }
-
-    for user_id in user_ids {
-        tx.send(UserIdResult { user_id }).await?;
     }
 
     Ok(())
