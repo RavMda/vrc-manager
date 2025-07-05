@@ -2,3 +2,4 @@
 *.cookie
 .env
 Cargo.lock
+config.toml

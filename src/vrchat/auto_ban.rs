@@ -1,20 +1,19 @@
+use crate::config::CONFIG;
 use crate::events::AppEvent;
 use crate::listen;
 use anyhow::{Context, Result};
-use once_cell::sync::Lazy;
 use std::collections::HashSet;
 use std::io::{self, BufRead};
 use url::Url;
 use vrchatapi::apis;
 use vrchatapi::models::BanGroupMemberRequest;
 
-static AVATAR_FILE: Lazy<String> =
-    Lazy::new(|| std::env::var("AVATAR_FILE").unwrap_or("avatars.txt".to_string()));
-
-static GROUP_ID: Lazy<String> =
-    Lazy::new(|| std::env::var("GROUP_ID").expect("GROUP_ID environment variable not set"));
-
 async fn process_user(config: &apis::configuration::Configuration, user_id: String) -> Result<()> {
+    let group_id = CONFIG
+        .group_id
+        .clone()
+        .context("group_id config variable not set")?;
+
     let user = apis::users_api::get_user(config, &user_id)
         .await
         .context("Failed to retrieve user data")?;
@@ -29,9 +28,11 @@ async fn process_user(config: &apis::configuration::Configuration, user_id: Stri
     }
 
     let ban_request = BanGroupMemberRequest::new(user_id.clone());
-    apis::groups_api::ban_group_member(config, GROUP_ID.as_str(), ban_request)
+    apis::groups_api::ban_group_member(config, group_id.as_str(), ban_request)
         .await
         .context("Failed to ban user")?;
+
+    println!("Banned {} from the group", user_id);
 
     Ok(())
 }
@@ -45,18 +46,23 @@ fn extract_avatar_id(url: &str) -> Option<String> {
 }
 
 fn load_avatar_list() -> io::Result<HashSet<String>> {
-    let file = std::fs::File::open(AVATAR_FILE.as_str())?;
+    let avatar_file = CONFIG
+        .avatars_file
+        .clone()
+        .unwrap_or("avatars.txt".to_string());
+
+    let file = std::fs::File::open(avatar_file.as_str())?;
     let reader = io::BufReader::new(file);
     Ok(reader.lines().filter_map(Result::ok).collect())
 }
 
-pub fn avatar_autoban(auth_config: &apis::configuration::Configuration) {
+pub fn auto_ban(auth_config: &apis::configuration::Configuration) {
     let auth_config_clone = auth_config.clone();
 
     listen!(
         AppEvent::OnPlayerJoined(user_id) => {
           if let Err(err) = process_user(&auth_config_clone, user_id.clone()).await {
-            eprintln!("Failed to process user {}, err: {}", user_id, err);
+            eprintln!("Failed to process user {}, err: {:#}", user_id, err);
           };
         }
     );
@@ -66,7 +72,7 @@ pub fn avatar_autoban(auth_config: &apis::configuration::Configuration) {
     listen!(
         AppEvent::OnAvatarChanged(user_id) => {
           if let Err(err) = process_user(&auth_config_clone2, user_id.clone()).await {
-            eprintln!("Failed to process user {}, err: {}", user_id, err);
+            eprintln!("Failed to process user {}, err: {:#}", user_id, err);
           };
         }
     );

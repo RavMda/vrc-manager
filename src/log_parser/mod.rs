@@ -10,6 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::Mutex;
 use tokio::time;
 
+use crate::config::CONFIG;
 use crate::events::{AppEvent, BUS};
 
 static JOIN_PATTERN: Lazy<Regex> = Lazy::new(|| {
@@ -49,8 +50,6 @@ static AVATAR_PATTERN: Lazy<Regex> = Lazy::new(|| {
     )
     .unwrap()
 });
-
-static CUSTOM_LOG_DIR: Lazy<Option<String>> = Lazy::new(|| std::env::var("CUSTOM_LOG_DIR").ok());
 
 pub async fn start_loop() -> Result<()> {
     let log_path = find_latest_log().await?;
@@ -163,7 +162,7 @@ async fn process_log_chunk(
 }
 
 fn get_vrchat_log_dir() -> Result<PathBuf> {
-    if let Some(custom_dir) = CUSTOM_LOG_DIR.as_deref() {
+    if let Some(custom_dir) = CONFIG.custom_log_dir.clone() {
         return Ok(PathBuf::from(custom_dir));
     }
 

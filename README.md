@@ -1,8 +1,8 @@
-# VRCAutoBan - Automatic VRChat Group Ban Utility
+# VRCManager - Automated VRChat Group Management Utility
 
 ![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)
 
-Automatically ban VRChat players who use prohibited avatars by monitoring game logs in real-time.
+Automate group moderation and management tasks in VRChat through real-time log monitoring.
 
 ## Key Features
 
@@ -10,9 +10,10 @@ Automatically ban VRChat players who use prohibited avatars by monitoring game l
 - 🔒 Secure authentication with 2FA support
 - 🧾 Persistent cookie storage for seamless logins
 - 🚫 Automatic group banning of users with prohibited avatars
-- ⚙️ Configurable through environment variables
+- 📬 Automatic group invites
+- ⚙️ Customizable through a simple configuration file
 
-## How It Works
+## How Automatic Bans Work
 
 1. Monitors VRChat's latest log file for player join events
 2. Extracts user IDs from log entries
@@ -24,23 +25,20 @@ Automatically ban VRChat players who use prohibited avatars by monitoring game l
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/vrc-autoban.git
-cd vrc-autoban
+git clone https://github.com/RavMda/vrc-manager.git
+cd vrc-manager
 ```
 
-### 2. Create environment file (`.env`)
-```env
-# Required
-GROUP_ID=grp_00000000-0000-0000-0000-000000000000
-
-# Optional (defaults to avatars.txt)
-AVATAR_FILE=custom_blocklist.txt
-
-# Optional log directory override
-CUSTOM_LOG_DIR=/home/whatever/something/vrchat/logs
+### 2. Create config file (`config.toml`)
+```toml
+auto_invite = true
+auto_ban = false
+group_id = "grp_f0db2b50-9440-4e8f-bd09-75870a423dd7" #required
+avatars_file = "avatars.txt" # optional
+custom_log_dir = "/home/whatever/something/vrchat" # optional
 ```
 
-### 3. Create avatar blocklist
+### 3. Create avatar blocklist (if automatic banning is used)
 Modify existing `avatars.txt` (or your custom-named file) with one avatar ID per line:
 ```
 avtr_12345678-90ab-cdef-1234-567890abcdef
@@ -59,7 +57,7 @@ cargo build --release
 cargo run --release
 
 # Or run the compiled binary
-./target/release/vrc-autoban
+./target/release/vrc-autoban # .exe if on Windows
 ```
 ## Important Notes
 - **Rate Limits**: VRChat API has rate limits - use responsibly
