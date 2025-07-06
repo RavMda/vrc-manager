@@ -1,14 +1,13 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::Duration;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::Mutex;
-use tokio::time;
 
 use crate::config::CONFIG;
 use crate::events::{AppEvent, BUS};
@@ -52,40 +51,78 @@ static AVATAR_PATTERN: Lazy<Regex> = Lazy::new(|| {
 });
 
 pub async fn start_loop() -> Result<()> {
-    let log_path = find_latest_log().await?;
+    let log_dir = get_vrchat_log_dir()?;
+    let mut current_log_path = find_latest_log().await?;
     let program_start = Local::now();
 
-    let mut file = fs::File::open(&log_path).await?;
+    let mut file = fs::File::open(&current_log_path).await?;
     let mut last_position = file.seek(std::io::SeekFrom::End(0)).await?;
     let mut buffer = String::new();
     let user_map = Mutex::new(HashMap::new());
 
+    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+    let mut watcher = RecommendedWatcher::new(
+        move |res| {
+            if let Ok(event) = res {
+                let _ = tx.blocking_send(event);
+            }
+        },
+        notify::Config::default(),
+    )?;
+
+    watcher.watch(&log_dir, RecursiveMode::NonRecursive)?;
+    watcher.watch(&current_log_path, RecursiveMode::NonRecursive)?;
+
     loop {
-        time::sleep(Duration::from_secs(1)).await;
+        let event = rx.recv().await;
 
-        let metadata = fs::metadata(&log_path).await?;
-        let current_len = metadata.len();
+        match event {
+            Some(event) => {
+                if event.paths.iter().any(|p| p == &log_dir) {
+                    if let EventKind::Create(_) = event.kind {
+                        if let Ok(newest_log) = find_latest_log().await {
+                            if newest_log != current_log_path {
+                                current_log_path = newest_log.clone();
+                                file = fs::File::open(&newest_log).await?;
+                                last_position = file.seek(std::io::SeekFrom::End(0)).await?;
+                                buffer.clear();
+                                watcher.unwatch(&current_log_path)?;
+                                watcher.watch(&newest_log, RecursiveMode::NonRecursive)?;
+                            }
+                        }
+                    }
+                } else if event.paths.iter().any(|p| p == &current_log_path) {
+                    if let EventKind::Modify(_) = event.kind {
+                        let metadata = fs::metadata(&current_log_path).await?;
+                        let current_len = metadata.len();
 
-        if current_len > last_position {
-            file = reopen_log_file(&log_path).await?;
-            file.seek(std::io::SeekFrom::Start(last_position)).await?;
+                        if current_len > last_position {
+                            file = reopen_log_file(&current_log_path).await?;
+                            file.seek(std::io::SeekFrom::Start(last_position)).await?;
 
-            let mut chunk = Vec::new();
-            file.take(current_len - last_position)
-                .read_to_end(&mut chunk)
-                .await?;
+                            let mut chunk = Vec::new();
+                            file.take(current_len - last_position)
+                                .read_to_end(&mut chunk)
+                                .await?;
 
-            process_log_chunk(
-                String::from_utf8_lossy(&chunk).into_owned(),
-                &mut buffer,
-                program_start,
-                &user_map,
-            )
-            .await?;
+                            process_log_chunk(
+                                String::from_utf8_lossy(&chunk).into_owned(),
+                                &mut buffer,
+                                program_start,
+                                &user_map,
+                            )
+                            .await?;
 
-            last_position = current_len;
+                            last_position = current_len;
+                        }
+                    }
+                }
+            }
+            None => break,
         }
     }
+
+    Ok(())
 }
 
 async fn reopen_log_file(path: &PathBuf) -> Result<fs::File> {
@@ -215,9 +252,4 @@ fn parse_log_timestamp(filename: &str) -> Option<DateTime<Local>> {
     NaiveDateTime::parse_from_str(&datetime_str, "%Y.%m.%d %H:%M:%S")
         .ok()
         .and_then(|ndt| Local.from_local_datetime(&ndt).single())
-}
-
-#[derive(Debug)]
-pub struct UserIdResult {
-    pub user_id: String,
 }

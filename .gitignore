@@ -3,3 +3,4 @@
 .env
 Cargo.lock
 config.toml
+vrc-manager.log

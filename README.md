@@ -62,7 +62,6 @@ cargo run --release
 ## Important Notes
 - **Rate Limits**: VRChat API has rate limits - use responsibly
 - **Log Format**: Depends on VRChat's current log format (may need updates)
-- **Long Reaction Times**: May take a few seconds to process log entries, and the player won't get kicked instantly because of limitations
 
 ## Contributing 🤝
 1. Fork the repository
