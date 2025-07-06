@@ -4,6 +4,7 @@ use crate::listen;
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::io::{self, BufRead};
+use tracing::{error, info};
 use url::Url;
 use vrchatapi::apis;
 use vrchatapi::models::BanGroupMemberRequest;
@@ -32,7 +33,7 @@ async fn process_user(config: &apis::configuration::Configuration, user_id: Stri
         .await
         .context("Failed to ban user")?;
 
-    println!("Banned {} from the group", user_id);
+    info!("Banned {} from the group", user_id);
 
     Ok(())
 }
@@ -62,7 +63,7 @@ pub fn auto_ban(auth_config: &apis::configuration::Configuration) {
     listen!(
         AppEvent::OnPlayerJoined(user_id) => {
           if let Err(err) = process_user(&auth_config_clone, user_id.clone()).await {
-            eprintln!("Failed to process user {}, err: {:#}", user_id, err);
+            error!("Failed to process user {}, err: {:#}", user_id, err);
           };
         }
     );
@@ -72,7 +73,7 @@ pub fn auto_ban(auth_config: &apis::configuration::Configuration) {
     listen!(
         AppEvent::OnAvatarChanged(user_id) => {
           if let Err(err) = process_user(&auth_config_clone2, user_id.clone()).await {
-            eprintln!("Failed to process user {}, err: {:#}", user_id, err);
+            error!("Failed to process user {}, err: {:#}", user_id, err);
           };
         }
     );

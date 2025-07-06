@@ -1,17 +1,21 @@
 use anyhow::Result;
+use tracing::error;
 
 use crate::config::CONFIG;
 
-pub mod config;
-pub mod events;
-pub mod log_parser;
-pub mod vrchat;
+mod config;
+mod events;
+mod log_parser;
+mod logging;
+mod vrchat;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    logging::init();
+
     tokio::spawn(async move {
         if let Err(err) = log_parser::start_loop().await {
-            eprintln!("Log parser failed: {:#}", err);
+            error!("Log parser failed: {:#}", err);
         }
     });
 
@@ -21,7 +25,7 @@ async fn main() -> Result<()> {
         vrchat::auto_ban(&auth_config);
     }
 
-    if CONFIG.auto_invite {
+    if CONFIG.auto_invite.enabled {
         vrchat::auto_invite(&auth_config);
     }
 

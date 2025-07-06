@@ -1,13 +1,12 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use reqwest::cookie::CookieStore;
 use std::io::{self, Write};
 use std::sync::Arc;
+use tracing::{error, info};
 use url::Url;
 pub use vrchatapi::apis;
 use vrchatapi::apis::configuration::Configuration;
-use vrchatapi::models::{
-    CurrentUser, EitherUserOrTwoFactor, TwoFactorAuthCode, TwoFactorEmailCode,
-};
+use vrchatapi::models::{EitherUserOrTwoFactor, TwoFactorAuthCode, TwoFactorEmailCode};
 
 pub async fn auth() -> Result<Configuration> {
     let username = read_user_input("Enter your username: ");
@@ -39,7 +38,7 @@ async fn try_existing_cookie(
 
     match apis::authentication_api::get_current_user(config).await {
         Ok(EitherUserOrTwoFactor::CurrentUser(user)) => {
-            println!(
+            info!(
                 "Logged in with existing cookie as {}",
                 user.username.as_deref().unwrap_or("Unknown")
             );
@@ -65,14 +64,14 @@ async fn perform_password_auth(
         match apis::authentication_api::get_current_user(config).await {
             Ok(EitherUserOrTwoFactor::CurrentUser(user)) => {
                 save_cookies(cookie_jar, cookie_filename)?;
-                println!("Logged in as {}", user.display_name);
+                info!("Logged in as {}", user.display_name);
                 break;
             }
             Ok(EitherUserOrTwoFactor::RequiresTwoFactorAuth(req)) => {
                 handle_two_factor_auth(config, req).await?;
             }
             Err(e) => {
-                eprintln!("Authentication failed: {}", e);
+                error!("Authentication failed: {:#}", e);
                 std::process::exit(1);
             }
         }
@@ -100,15 +99,6 @@ async fn handle_two_factor_auth(
             .context("Authenticator 2FA verification failed")?;
     }
     Ok(())
-}
-
-pub async fn get_current_user(config: &Configuration) -> Result<CurrentUser> {
-    match apis::authentication_api::get_current_user(config).await? {
-        EitherUserOrTwoFactor::CurrentUser(user) => Ok(user),
-        EitherUserOrTwoFactor::RequiresTwoFactorAuth(_) => {
-            bail!("Two-factor authentication required")
-        }
-    }
 }
 
 fn read_user_input(prompt: &str) -> String {

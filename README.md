@@ -31,11 +31,15 @@ cd vrc-manager
 
 ### 2. Create config file (`config.toml`)
 ```toml
-auto_invite = true
 auto_ban = false
-group_id = "grp_f0db2b50-9440-4e8f-bd09-75870a423dd7" #required
-avatars_file = "avatars.txt" # optional
-custom_log_dir = "/home/whatever/something/vrchat" # optional
+group_id = "grp_f0db2b50-9440-4e8f-bd09-75870a423dd7"
+avatars_file = "avatars.txt"                          # optional
+custom_log_dir = "/home/whatever/something/vrchat"    # optional
+
+[auto_invite]
+enabled = true
+delay_min = 240  # seconds
+delay_max = 360 # seconds
 ```
 
 ### 3. Create avatar blocklist (if automatic banning is used)
@@ -62,7 +66,6 @@ cargo run --release
 ## Important Notes
 - **Rate Limits**: VRChat API has rate limits - use responsibly
 - **Log Format**: Depends on VRChat's current log format (may need updates)
-- **Long Reaction Times**: May take a few seconds to process log entries, and the player won't get kicked instantly because of limitations
 
 ## Contributing 🤝
 1. Fork the repository
