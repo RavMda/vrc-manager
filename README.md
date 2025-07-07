@@ -31,7 +31,6 @@ cd vrc-manager
 
 ### 2. Create config file (`config.toml`)
 ```toml
-auto_ban = false
 group_id = "grp_f0db2b50-9440-4e8f-bd09-75870a423dd7"
 avatars_file = "avatars.txt"                          # optional
 custom_log_dir = "/home/whatever/something/vrchat"    # optional
@@ -40,6 +39,10 @@ custom_log_dir = "/home/whatever/something/vrchat"    # optional
 enabled = true
 delay_min = 240  # seconds
 delay_max = 360 # seconds
+
+[auto_ban]
+enabled = true
+log_avatar_id = true
 ```
 
 ### 3. Create avatar blocklist (if automatic banning is used)

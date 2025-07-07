@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
 
     let auth_config = vrchat::auth().await?;
 
-    if CONFIG.auto_ban {
+    if CONFIG.auto_ban.enabled {
         vrchat::auto_ban(&auth_config);
     }
 

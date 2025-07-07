@@ -22,6 +22,10 @@ async fn process_user(config: &apis::configuration::Configuration, user_id: Stri
     let avatar_id =
         extract_avatar_id(&user.current_avatar_image_url).context("Failed to extract avatar ID")?;
 
+    if CONFIG.auto_ban.log_avatar_id {
+        info!("Avatar ID of {}: {}", user.display_name, avatar_id);
+    }
+
     let banned_avatars = load_avatar_list().context("Failed to load avatar list")?;
 
     if !banned_avatars.contains(&avatar_id) {

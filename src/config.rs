@@ -14,9 +14,16 @@ pub struct AutoInvite {
 
 #[derive(Deserialize, Default, Debug)]
 #[serde(default)]
+pub struct AutoBan {
+    pub enabled: bool,
+    pub log_avatar_id: bool,
+}
+
+#[derive(Deserialize, Default, Debug)]
+#[serde(default)]
 pub struct Config {
     pub auto_invite: AutoInvite,
-    pub auto_ban: bool,
+    pub auto_ban: AutoBan,
     pub group_id: Option<String>,
     pub avatars_file: Option<String>,
     pub custom_log_dir: Option<String>,
