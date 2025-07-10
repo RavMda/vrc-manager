@@ -10,3 +10,13 @@ delay_max = 360 # seconds
 [auto_ban]
 enabled = true
 log_avatar_id = true
+
+[discord_webhook]
+enabled = true
+username = "github.com/RavMda/vrc-manager"
+avatar_url = "https://i.imgur.com/KTs6whd.jpg"
+url = "https://discord.com/api/webhooks/01234567890123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+log_on_player_joined = true
+log_on_player_left = true
+log_on_auto_invite = true
+log_on_auto_ban = true

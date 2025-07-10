@@ -10,6 +10,8 @@ pub enum AppEvent {
     OnPlayerJoined(String),
     OnPlayerLeft(String),
     OnAvatarChanged(String),
+    OnAutoBanned(String, String), // user_id, avatar_file_id
+    OnAutoInvited(String),
 }
 
 pub static BUS: Lazy<Arc<EventBus>> = Lazy::new(|| Arc::new(EventBus::new()));

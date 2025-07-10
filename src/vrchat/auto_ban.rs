@@ -1,5 +1,5 @@
 use crate::config::CONFIG;
-use crate::events::AppEvent;
+use crate::events::{AppEvent, BUS};
 use crate::listen;
 use anyhow::{Context, Result};
 use std::collections::HashSet;
@@ -47,6 +47,9 @@ async fn process_user(config: &apis::configuration::Configuration, user_id: Stri
         .context("Failed to ban user")?;
 
     info!("Banned {} from the group", user_id);
+
+    BUS.publish(AppEvent::OnAutoBanned(user_id, avatar_id))
+        .await;
 
     Ok(())
 }

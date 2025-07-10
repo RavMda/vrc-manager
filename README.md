@@ -12,6 +12,7 @@ Automate group moderation and management tasks in VRChat through real-time log m
 - 🚫 Automatic group banning of users with prohibited avatars
 - 📬 Automatic group invites
 - ⚙️ Customizable through a simple configuration file
+- 🎮 Discord webhook integration for real-time notifications
 
 ## How Automatic Bans Work
 
@@ -41,6 +42,16 @@ delay_max = 360 # seconds
 [auto_ban]
 enabled = true
 log_avatar_id = true
+
+[discord_webhook]
+enabled = true
+username = "github.com/RavMda/vrc-manager"
+avatar_url = "https://i.imgur.com/KTs6whd.jpg"
+url = "https://discord.com/api/webhooks/01234567890123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+log_on_player_joined = true
+log_on_player_left = true
+log_on_auto_invite = true
+log_on_auto_ban = true
 ```
 
 ### 2. Create avatar file id blocklist (if automatic banning is used)

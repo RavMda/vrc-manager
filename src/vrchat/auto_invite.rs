@@ -1,5 +1,5 @@
 use crate::config::CONFIG;
-use crate::events::AppEvent;
+use crate::events::{AppEvent, BUS};
 use crate::listen;
 use anyhow::{Context, Result};
 use rand::Rng;
@@ -24,6 +24,8 @@ async fn process_user(config: &apis::configuration::Configuration, user_id: Stri
         .context("Failed to invite user")?;
 
     info!("Invited {} to the group", user_id);
+
+    BUS.publish(AppEvent::OnAutoInvited(user_id)).await;
 
     Ok(())
 }

@@ -21,9 +21,23 @@ pub struct AutoBan {
 
 #[derive(Deserialize, Default, Debug)]
 #[serde(default)]
+pub struct DiscordWebhook {
+    pub enabled: bool,
+    pub username: String,
+    pub avatar_url: String,
+    pub url: String,
+    pub log_on_player_joined: bool,
+    pub log_on_player_left: bool,
+    pub log_on_auto_invite: bool,
+    pub log_on_auto_ban: bool,
+}
+
+#[derive(Deserialize, Default, Debug)]
+#[serde(default)]
 pub struct Config {
     pub auto_invite: AutoInvite,
     pub auto_ban: AutoBan,
+    pub discord_webhook: DiscordWebhook,
     pub group_id: Option<String>,
     pub avatars_file: Option<String>,
     pub custom_log_dir: Option<String>,

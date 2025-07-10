@@ -4,6 +4,7 @@ use tracing::error;
 use crate::config::CONFIG;
 
 mod config;
+mod discord_webhook;
 mod events;
 mod log_parser;
 mod logging;
@@ -27,6 +28,10 @@ async fn main() -> Result<()> {
 
     if CONFIG.auto_invite.enabled {
         vrchat::auto_invite(&auth_config);
+    }
+
+    if CONFIG.discord_webhook.enabled {
+        discord_webhook::init(&auth_config);
     }
 
     loop {

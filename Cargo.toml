@@ -12,6 +12,7 @@ rand = "0.9.1"
 regex = "1.11.1"
 reqwest = "0.12.18"
 serde = "1.0.219"
+serenity = "0.12.4"
 tokio = { version = "1.45.1", features = ["full"] }
 toml = "0.8.23"
 tracing = "0.1.41"
