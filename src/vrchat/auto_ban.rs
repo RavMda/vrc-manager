@@ -4,7 +4,7 @@ use crate::listen;
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::io::{self, BufRead};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use url::Url;
 use vrchatapi::apis;
 use vrchatapi::models::BanGroupMemberRequest;
@@ -18,6 +18,15 @@ async fn process_user(config: &apis::configuration::Configuration, user_id: Stri
     let user = apis::users_api::get_user(config, &user_id)
         .await
         .context("Failed to retrieve user data")?;
+
+    if user.profile_pic_override != "".to_string() {
+        warn!(
+            "User {} has a profile pic override, skipping",
+            user.display_name
+        );
+
+        return Ok(());
+    }
 
     let avatar_id =
         extract_avatar_id(&user.current_avatar_image_url).context("Failed to extract avatar ID")?;

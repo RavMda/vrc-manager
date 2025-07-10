@@ -21,15 +21,13 @@ Automate group moderation and management tasks in VRChat through real-time log m
 4. Checks avatar against your blocklist (`avatars.txt`)
 5. Automatically bans users with prohibited avatars from your group
 
-## Setup & Configuration
+## Download Pre-Built Binaries
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/RavMda/vrc-manager.git
-cd vrc-manager
-```
+Pre-built binaries are available for download on the [Releases page](https://github.com/RavMda/vrc-manager/releases).
 
-### 2. Create config file (`config.toml`)
+## Configuration
+
+### 1. Create config file (`config.toml`)
 ```toml
 group_id = "grp_f0db2b50-9440-4e8f-bd09-75870a423dd7"
 avatars_file = "avatars.txt"                          # optional
@@ -45,27 +43,29 @@ enabled = true
 log_avatar_id = true
 ```
 
-### 3. Create avatar blocklist (if automatic banning is used)
-Modify existing `avatars.txt` (or your custom-named file) with one avatar ID per line:
+### 2. Create avatar file id blocklist (if automatic banning is used)
+Modify existing `avatars.txt` (or your custom-named file) with one avatar file ID per line:
 ```
-avtr_12345678-90ab-cdef-1234-567890abcdef
-avtr_aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+file_12345678-90ab-cdef-1234-567890abcdef
+file_aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
 ```
 
-### 4. Build the project
+## Building from Source
+
 ```bash
+# Clone the repository
+git clone https://github.com/RavMda/vrc-manager.git    
+cd vrc-manager
+
+# Build the project
 cargo build --release
-```
 
-## Usage
+# The binary will be available at "target/release" folder
 
-```bash
-# Run the application
+# Or, you can just simply run it
 cargo run --release
-
-# Or run the compiled binary
-./target/release/vrc-autoban # .exe if on Windows
 ```
+
 ## Important Notes
 - **Rate Limits**: VRChat API has rate limits - use responsibly
 - **Log Format**: Depends on VRChat's current log format (may need updates)
