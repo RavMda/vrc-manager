@@ -1,39 +1,25 @@
 use crate::config::CONFIG;
-use crate::events::{AppEvent, BUS};
+use crate::events::{AppEvent, EVENT_BUS};
 use crate::listen;
+use crate::vrchat::util::extract_avatar_file_id;
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::io::{self, BufRead};
-use tracing::{error, info, warn};
-use url::Url;
+use tracing::{error, info};
 use vrchatapi::apis;
-use vrchatapi::models::BanGroupMemberRequest;
+use vrchatapi::apis::configuration::Configuration;
+use vrchatapi::models::{BanGroupMemberRequest, User};
 
-async fn process_user(config: &apis::configuration::Configuration, user_id: String) -> Result<()> {
+async fn process_user(config: &Configuration, user_id: String, user: User) -> Result<()> {
     let group_id = CONFIG
         .group_id
         .clone()
         .context("group_id config variable not set")?;
 
-    let user = apis::users_api::get_user(config, &user_id)
-        .await
-        .context("Failed to retrieve user data")?;
-
-    if user.profile_pic_override != "".to_string() {
-        warn!(
-            "User {} has a profile pic override, skipping",
-            user.display_name
-        );
-
-        return Ok(());
-    }
-
-    let avatar_id =
-        extract_avatar_id(&user.current_avatar_image_url).context("Failed to extract avatar ID")?;
-
-    if CONFIG.auto_ban.log_avatar_id {
-        info!("Avatar ID of {}: {}", user.display_name, avatar_id);
-    }
+    let avatar_id = match extract_avatar_file_id(&user)? {
+        Some(id) => id,
+        _ => return Ok(()),
+    };
 
     let banned_avatars = load_avatar_list().context("Failed to load avatar list")?;
 
@@ -48,18 +34,11 @@ async fn process_user(config: &apis::configuration::Configuration, user_id: Stri
 
     info!("Banned {} from the group", user_id);
 
-    BUS.publish(AppEvent::OnAutoBanned(user_id, avatar_id))
+    EVENT_BUS
+        .publish(AppEvent::OnAutoBanned(user_id, avatar_id))
         .await;
 
     Ok(())
-}
-
-fn extract_avatar_id(url: &str) -> Option<String> {
-    Url::parse(url)
-        .ok()?
-        .path_segments()?
-        .nth(3)
-        .map(|s| s.to_string())
 }
 
 fn load_avatar_list() -> io::Result<HashSet<String>> {
@@ -77,18 +56,13 @@ pub fn auto_ban(auth_config: &apis::configuration::Configuration) {
     let auth_config_clone = auth_config.clone();
 
     listen!(
-        AppEvent::OnPlayerJoined(user_id) => {
-          if let Err(err) = process_user(&auth_config_clone, user_id.clone()).await {
+        AppEvent::OnPlayerJoined(user_id, user) => {
+          if let Err(err) = process_user(&auth_config_clone, user_id.clone(), user).await {
             error!("Failed to process user {}, err: {:#}", user_id, err);
           };
-        }
-    );
-
-    let auth_config_clone2 = auth_config.clone();
-
-    listen!(
-        AppEvent::OnAvatarChanged(user_id) => {
-          if let Err(err) = process_user(&auth_config_clone2, user_id.clone()).await {
+        },
+        AppEvent::OnAvatarChanged(user_id, user) => {
+          if let Err(err) = process_user(&auth_config_clone, user_id.clone(), user).await {
             error!("Failed to process user {}, err: {:#}", user_id, err);
           };
         }

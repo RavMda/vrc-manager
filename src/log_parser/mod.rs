@@ -10,7 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::Mutex;
 
 use crate::config::CONFIG;
-use crate::events::{AppEvent, BUS};
+use crate::events::{AppEvent, EVENT_BUS};
 
 static JOIN_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
@@ -154,7 +154,9 @@ async fn process_log_chunk(
                         map.insert(username.to_string(), user_id.to_string());
                     }
 
-                    BUS.publish(AppEvent::OnPlayerJoined(user_id.into())).await;
+                    EVENT_BUS
+                        .publish(AppEvent::OnPlayerJoinedRaw(user_id.into()))
+                        .await;
                 }
             }
         } else if let Some(captures) = LEAVE_PATTERN.captures(line) {
@@ -169,7 +171,9 @@ async fn process_log_chunk(
                     let mut map = user_map.lock().await;
                     map.remove(username);
 
-                    BUS.publish(AppEvent::OnPlayerLeft(user_id.into())).await;
+                    EVENT_BUS
+                        .publish(AppEvent::OnPlayerLeftRaw(user_id.into()))
+                        .await;
                 }
             }
         } else if let Some(captures) = AVATAR_PATTERN.captures(line) {
@@ -182,7 +186,9 @@ async fn process_log_chunk(
                 if datetime > program_start {
                     let map = user_map.lock().await;
                     if let Some(user_id) = map.get(username) {
-                        BUS.publish(AppEvent::OnAvatarChanged(user_id.into())).await;
+                        EVENT_BUS
+                            .publish(AppEvent::OnAvatarChangedRaw(user_id.into()))
+                            .await;
                     }
                 }
             }

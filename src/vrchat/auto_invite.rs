@@ -1,5 +1,5 @@
 use crate::config::CONFIG;
-use crate::events::{AppEvent, BUS};
+use crate::events::{AppEvent, EVENT_BUS};
 use crate::listen;
 use anyhow::{Context, Result};
 use rand::Rng;
@@ -10,9 +10,10 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::{error, info};
 use vrchatapi::apis;
+use vrchatapi::apis::configuration::Configuration;
 use vrchatapi::models::CreateGroupInviteRequest;
 
-async fn process_user(config: &apis::configuration::Configuration, user_id: String) -> Result<()> {
+async fn process_user(config: &Configuration, user_id: String) -> Result<()> {
     let group_id = CONFIG
         .group_id
         .clone()
@@ -25,19 +26,19 @@ async fn process_user(config: &apis::configuration::Configuration, user_id: Stri
 
     info!("Invited {} to the group", user_id);
 
-    BUS.publish(AppEvent::OnAutoInvited(user_id)).await;
+    EVENT_BUS.publish(AppEvent::OnAutoInvited(user_id)).await;
 
     Ok(())
 }
 
-pub fn auto_invite(auth_config: &apis::configuration::Configuration) {
+pub fn auto_invite(auth_config: &Configuration) {
     let auth_config_clone = auth_config.clone();
     let handles = Arc::new(Mutex::new(HashMap::<String, JoinHandle<()>>::new()));
 
     let handles_clone = handles.clone();
 
     listen!(
-        AppEvent::OnPlayerJoined(user_id) => {
+        AppEvent::OnPlayerJoined(user_id, _) => {
           let auth_config_clone = auth_config_clone.clone();
 
           let mut handles_guard = handles_clone.lock().await;
@@ -68,7 +69,7 @@ pub fn auto_invite(auth_config: &apis::configuration::Configuration) {
     let handles_clone = handles.clone();
 
     listen!(
-        AppEvent::OnPlayerLeft(user_id) => {
+        AppEvent::OnPlayerLeft(user_id, _) => {
           let mut handles_guard = handles_clone.lock().await;
           if let Some(handle) = handles_guard.remove(&user_id) {
               handle.abort();

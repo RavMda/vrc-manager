@@ -22,6 +22,8 @@ async fn main() -> Result<()> {
 
     let auth_config = vrchat::auth().await?;
 
+    vrchat::event_enricher::init(&auth_config);
+
     if CONFIG.auto_ban.enabled {
         vrchat::auto_ban(&auth_config);
     }
@@ -32,6 +34,10 @@ async fn main() -> Result<()> {
 
     if CONFIG.discord_webhook.enabled {
         discord_webhook::init(&auth_config);
+    }
+
+    if CONFIG.log_avatar_id {
+        vrchat::log_avatar_id();
     }
 
     loop {

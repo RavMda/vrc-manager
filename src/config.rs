@@ -16,7 +16,6 @@ pub struct AutoInvite {
 #[serde(default)]
 pub struct AutoBan {
     pub enabled: bool,
-    pub log_avatar_id: bool,
 }
 
 #[derive(Deserialize, Default, Debug)]
@@ -28,6 +27,7 @@ pub struct DiscordWebhook {
     pub url: String,
     pub log_on_player_joined: bool,
     pub log_on_player_left: bool,
+    pub log_on_avatar_changed: bool,
     pub log_on_auto_invite: bool,
     pub log_on_auto_ban: bool,
 }
@@ -38,6 +38,7 @@ pub struct Config {
     pub auto_invite: AutoInvite,
     pub auto_ban: AutoBan,
     pub discord_webhook: DiscordWebhook,
+    pub log_avatar_id: bool,
     pub group_id: Option<String>,
     pub avatars_file: Option<String>,
     pub custom_log_dir: Option<String>,

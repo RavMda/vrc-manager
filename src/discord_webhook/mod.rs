@@ -1,9 +1,11 @@
+use crate::vrchat::util::extract_avatar_file_id;
 use crate::{config::CONFIG, events::AppEvent, listen};
 use reqwest::Client;
 use serde::Serialize;
 use tracing::error;
 use vrchatapi::apis::configuration::Configuration as ApiConfig;
 use vrchatapi::apis::users_api;
+use vrchatapi::models::User;
 
 pub fn init(auth_config: &ApiConfig) {
     if CONFIG.discord_webhook.log_on_auto_ban {
@@ -27,17 +29,26 @@ pub fn init(auth_config: &ApiConfig) {
     if CONFIG.discord_webhook.log_on_player_joined {
         let auth_config = auth_config.clone();
         listen!(
-            AppEvent::OnPlayerJoined(user_id) => {
-                handle_player_joined(&auth_config, user_id).await;
+            AppEvent::OnPlayerJoined(user_id, user) => {
+                handle_player_joined(&auth_config, user_id, user).await;
             }
         );
+    }
+
+    if CONFIG.discord_webhook.log_on_avatar_changed {
+        let auth_config = auth_config.clone();
+        listen!(
+            AppEvent::OnAvatarChanged(user_id, user) => {
+                handle_avatar_changed(&auth_config, user_id, user).await;
+            }
+        )
     }
 
     if CONFIG.discord_webhook.log_on_player_left {
         let auth_config = auth_config.clone();
         listen!(
-            AppEvent::OnPlayerLeft(user_id) => {
-                handle_player_left(&auth_config, user_id).await;
+            AppEvent::OnPlayerLeft(user_id, user) => {
+                handle_player_left(&auth_config, user_id, user).await;
             }
         );
     }
@@ -111,15 +122,26 @@ async fn handle_auto_invite(auth_config: &ApiConfig, user_id: String) {
     .await;
 }
 
-async fn handle_player_joined(auth_config: &ApiConfig, user_id: String) {
+async fn handle_player_joined(auth_config: &ApiConfig, user_id: String, user: User) {
+    let avatar_file_id = extract_avatar_file_id(&user)
+        .unwrap_or(None)
+        .unwrap_or("".to_string());
+
     send_embed(auth_config, user_id, |user| Embed {
         title: "Player Joined".into(),
         description: format!("**{}** has joined the instance!", user.display_name),
-        fields: vec![Field {
-            name: "User ID".into(),
-            value: user.id,
-            inline: false,
-        }],
+        fields: vec![
+            Field {
+                name: "User ID".into(),
+                value: user.id,
+                inline: false,
+            },
+            Field {
+                name: "Avatar File ID".into(),
+                value: avatar_file_id,
+                inline: false,
+            },
+        ],
         thumbnail: Thumbnail {
             url: user.current_avatar_thumbnail_image_url,
         },
@@ -128,15 +150,55 @@ async fn handle_player_joined(auth_config: &ApiConfig, user_id: String) {
     .await;
 }
 
-async fn handle_player_left(auth_config: &ApiConfig, user_id: String) {
+async fn handle_avatar_changed(auth_config: &ApiConfig, user_id: String, user: User) {
+    let avatar_file_id = match extract_avatar_file_id(&user).unwrap_or(None) {
+        Some(avatar_file_id) => avatar_file_id,
+        _ => return,
+    };
+
+    send_embed(auth_config, user_id, |user| Embed {
+        title: "Avatar Changed".into(),
+        description: format!("**{}** has changed their avatar!", user.display_name),
+        fields: vec![
+            Field {
+                name: "User ID".into(),
+                value: user.id,
+                inline: false,
+            },
+            Field {
+                name: "Avatar File ID".into(),
+                value: avatar_file_id,
+                inline: false,
+            },
+        ],
+        thumbnail: Thumbnail {
+            url: user.current_avatar_thumbnail_image_url,
+        },
+        color: 0xFFFF00,
+    })
+    .await;
+}
+
+async fn handle_player_left(auth_config: &ApiConfig, user_id: String, user: User) {
+    let avatar_file_id = extract_avatar_file_id(&user)
+        .unwrap_or(None)
+        .unwrap_or("".to_string());
+
     send_embed(auth_config, user_id, |user| Embed {
         title: "Player Left".into(),
         description: format!("**{}** has left the instance", user.display_name),
-        fields: vec![Field {
-            name: "User ID".into(),
-            value: user.id,
-            inline: false,
-        }],
+        fields: vec![
+            Field {
+                name: "User ID".into(),
+                value: user.id,
+                inline: false,
+            },
+            Field {
+                name: "Avatar File ID".into(),
+                value: avatar_file_id,
+                inline: false,
+            },
+        ],
         thumbnail: Thumbnail {
             url: user.current_avatar_thumbnail_image_url,
         },

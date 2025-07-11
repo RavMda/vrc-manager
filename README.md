@@ -31,6 +31,7 @@ Pre-built binaries are available for download on the [Releases page](https://git
 ### 1. Create config file (`config.toml`)
 ```toml
 group_id = "grp_f0db2b50-9440-4e8f-bd09-75870a423dd7"
+log_avatar_id = true
 avatars_file = "avatars.txt"                          # optional
 custom_log_dir = "/home/whatever/something/vrchat"    # optional
 
@@ -41,7 +42,6 @@ delay_max = 360 # seconds
 
 [auto_ban]
 enabled = true
-log_avatar_id = true
 
 [discord_webhook]
 enabled = true
@@ -50,6 +50,7 @@ avatar_url = "https://i.imgur.com/KTs6whd.jpg"
 url = "https://discord.com/api/webhooks/01234567890123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
 log_on_player_joined = true
 log_on_player_left = true
+log_on_avatar_changed = true
 log_on_auto_invite = true
 log_on_auto_ban = true
 ```

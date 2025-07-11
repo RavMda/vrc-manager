@@ -1,20 +1,24 @@
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
+use vrchatapi::models::User;
 
 type EventSender = mpsc::UnboundedSender<AppEvent>;
 type EventReceiver = mpsc::UnboundedReceiver<AppEvent>;
 
 #[derive(Clone)]
 pub enum AppEvent {
-    OnPlayerJoined(String),
-    OnPlayerLeft(String),
-    OnAvatarChanged(String),
+    OnPlayerJoinedRaw(String),
+    OnPlayerLeftRaw(String),
+    OnAvatarChangedRaw(String),
+    OnPlayerJoined(String, User),
+    OnPlayerLeft(String, User),
+    OnAvatarChanged(String, User),
     OnAutoBanned(String, String), // user_id, avatar_file_id
     OnAutoInvited(String),
 }
 
-pub static BUS: Lazy<Arc<EventBus>> = Lazy::new(|| Arc::new(EventBus::new()));
+pub static EVENT_BUS: Lazy<Arc<EventBus>> = Lazy::new(|| Arc::new(EventBus::new()));
 
 pub struct EventBus {
     senders: Mutex<Vec<EventSender>>,
@@ -42,7 +46,7 @@ impl EventBus {
 #[macro_export]
 macro_rules! listen {
     ($($variant:pat => $handler:expr),+ $(,)?) => {{
-        let bus = $crate::events::BUS.clone();
+        let bus = $crate::events::EVENT_BUS.clone();
         tokio::spawn(async move {
             let mut rx = bus.subscribe().await;
             while let Some(event) = rx.recv().await {
